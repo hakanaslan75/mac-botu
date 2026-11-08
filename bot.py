@@ -544,7 +544,9 @@ def tur(durum, kuru, hepsi, tarih):
             asama = durum_tipi.get("state")          # pre / in / post
             basla = zaman(e)
             dk_kaldi = (basla - simdi).total_seconds() / 60
-            if asama == "in" or (asama == "pre" and -180 <= dk_kaldi <= 15):
+            # Canlı maç ya da 100 dakika içinde başlayacak maç varsa bot uyanık kalır
+            # (ilk 11 maçtan ~60-75 dk önce açıklanıyor; gol kaçmasın diye maç bitene kadar sürer)
+            if asama == "in" or (asama == "pre" and -180 <= dk_kaldi <= ILK11_ONCE_DK + 10):
                 aktif = True
 
             # --- İlk 11
@@ -663,6 +665,12 @@ def main():
         if not a.dongu or not aktif or time.time() - basla + 60 > a.dongu * 60:
             break
         time.sleep(60)
+    # GitHub'a "maç sürüyor, bir sonraki turu hemen başlat" bilgisini ver
+    cikti = os.environ.get("GITHUB_OUTPUT")
+    if cikti:
+        with open(cikti, "a", encoding="utf-8") as f:
+            f.write(f"devam={'evet' if aktif else 'hayir'}\n")
+    print("Maç sürüyor, bir sonraki tur başlatılacak." if aktif else "Şu an takip edilecek maç yok.")
 
 
 if __name__ == "__main__":
