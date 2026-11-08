@@ -2,11 +2,12 @@ name: Mac botu
 
 on:
   schedule:
-    - cron: "3-59/10 * * * *"   # her 10 dakikada bir (GitHub bazen birkaç dakika geciktirir)
-  workflow_dispatch:            # elle çalıştırmak için "Run workflow" düğmesi
+    - cron: "3,13,23,33,43,53 * * * *"   # her 10 dakikada bir (GitHub bazen geciktirir ya da atlar)
+  workflow_dispatch:                      # elle ya da botun kendisi tarafından başlatmak için
 
 permissions:
   contents: write               # gönderilenler listesini (durum.json) kaydetmek için
+  actions: write                # maç sürerken bir sonraki turu kendisi başlatabilsin diye
 
 concurrency:
   group: mac-botu
@@ -20,6 +21,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Botu calistir
+        id: bot
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -36,3 +38,9 @@ jobs:
             git add durum.json
             git diff --cached --quiet || (git commit -m "durum guncellendi" && git pull --rebase && git push)
           fi
+
+      - name: Mac suruyorsa bir sonraki turu baslat
+        if: always() && steps.bot.outputs.devam == 'evet'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run mac_botu.yml --ref "${{ github.ref_name }}"
