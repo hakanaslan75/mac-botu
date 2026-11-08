@@ -1,0 +1,38 @@
+name: Mac botu
+
+on:
+  schedule:
+    - cron: "3-59/10 * * * *"   # her 10 dakikada bir (GitHub bazen birkaç dakika geciktirir)
+  workflow_dispatch:            # elle çalıştırmak için "Run workflow" düğmesi
+
+permissions:
+  contents: write               # gönderilenler listesini (durum.json) kaydetmek için
+
+concurrency:
+  group: mac-botu
+  cancel-in-progress: false     # aynı anda tek kopya çalışsın
+
+jobs:
+  calis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Botu calistir
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          LIGLER: ${{ vars.LIGLER }}
+          TAKIMLAR: ${{ vars.TAKIMLAR }}
+        run: python3 bot.py --dongu 25
+
+      - name: Gonderilenleri kaydet
+        if: always()
+        run: |
+          git config user.name "mac-botu"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -f durum.json ]; then
+            git add durum.json
+            git diff --cached --quiet || (git commit -m "durum guncellendi" && git pull --rebase && git push)
+          fi
