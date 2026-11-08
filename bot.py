@@ -39,7 +39,16 @@ ETIKETLER = {
     "ger.1": "#Bundesliga",
     "fra.1": "#Ligue1",
 }
-ILK11_ONCE_DK = 90      # maçtan en çok bu kadar dakika önce ilk 11'e bak
+# Maç etiketi kısaltmaları (#EVvDEP). 8 Kasım 2026'da Türkiye X gündem arşivinden derlendi:
+# ör. #ÇFKvFB, #BJKvGB, #GSvAMD, #İBFKvGS, #KNYvTS, #RİZvFB. Listede olmayan takımda ESPN kısaltması kullanılır.
+KISALTMALAR = {
+    "Galatasaray": "GS", "Fenerbahce": "FB", "Besiktas": "BJK", "Trabzonspor": "TS",
+    "Istanbul Basaksehir": "İBFK", "Goztepe": "GÖZ", "Kocaelispor": "KOC", "Kasimpasa": "KSP",
+    "Konyaspor": "KNY", "Alanyaspor": "ALY", "Amed SFK": "AMD", "Erzurum BB": "ERZ",
+    "Eyupspor": "EYP", "Genclerbirligi": "GB", "Gaziantep FK": "GFK", "Çorum FK": "ÇFK",
+    "Samsunspor": "SAM", "Caykur Rizespor": "RİZ",
+}
+ILK11_ONCE_DK = 90     # maçtan en çok bu kadar dakika önce ilk 11'e bak
 ILK11_SONRA_DK = 20     # başladıktan sonra en çok bu kadar dakika ilk 11 gönder
 SONUC_SURESI_SAAT = 6   # başlama saatinden bu kadar saat sonrasına kadar gol/sonuç gönder
 
@@ -73,10 +82,23 @@ def isimleri_oku():
             veri = json.load(f)
     except (OSError, ValueError):
         veri = {}
+    KISALTMALAR.update(veri.get("kisaltmalar", {}))
     return veri.get("takimlar", {}), veri.get("oyuncular", {})
 
 
 TAKIM_ADI, OYUNCU_ADI = isimleri_oku()
+
+
+def mac_etiketi(e):
+    """Maçın gündeme giren etiketi: ev sahibi + 'v' + deplasman, ör. #ÇFKvFB."""
+    kodlar = []
+    for t in taraflar(e):
+        kod = KISALTMALAR.get(t["team"]["displayName"]) or t["team"].get("abbreviation") or ""
+        kod = re.sub(r"[^\wÇĞİÖŞÜçğıöşü]", "", kod)
+        if not kod:
+            return ""
+        kodlar.append(kod)
+    return f"#{kodlar[0]}v{kodlar[1]}"
 
 
 def takim(ad):
@@ -413,7 +435,7 @@ def tur(durum, kuru, hepsi, tarih):
         gonderilen[anahtar] = datetime.now(timezone.utc).isoformat()
 
     for lig in liste("LIGLER", "tur.1"):
-        etiket = os.environ.get("ETIKET", "").strip() or ETIKETLER.get(lig, "")
+        lig_etiketi = os.environ.get("ETIKET", "").strip() or ETIKETLER.get(lig, "")
         maclar = {}
         for gun in gunleri_bul(tarih):
             istek_sayisi += 1
@@ -429,6 +451,8 @@ def tur(durum, kuru, hepsi, tarih):
         for e in sorted(maclar.values(), key=lambda m: m["date"]):
             if not mac_takip_ediliyor_mu(e, takimlar):
                 continue
+            # önce maçın kendi etiketi (gündeme giren), sonra lig etiketi
+            etiket = " ".join(x for x in (mac_etiketi(e), lig_etiketi) if x)
             durum_tipi = e["status"]["type"]
             asama = durum_tipi.get("state")          # pre / in / post
             basla = zaman(e)
