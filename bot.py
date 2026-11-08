@@ -1,6 +1,7 @@
 """Maç botu: ilk 11'leri, golleri ve maç sonuçlarını Telegram'a hazır tweet olarak yollar.
 
 Veri: ESPN'in herkese açık skor verisi (anahtar gerekmez, ücretsiz).
+İlk 11 için önce FotMob'a bakılır (ESPN kadroyu bazen maça çok az kala giriyor), yoksa ESPN.
 Telegram mesajındaki "X'te paylaş" düğmesine basınca X, metin yazılmış halde açılır.
 Yalnızca Python'un kendi kütüphaneleri kullanılır; paket kurmak gerekmez.
 
@@ -18,6 +19,7 @@ import os
 import re
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -25,6 +27,7 @@ from datetime import datetime, timedelta, timezone
 
 KLASOR = os.path.dirname(os.path.abspath(__file__))
 ESPN = "https://site.api.espn.com/apis/site/v2/sports/soccer"
+FOTMOB = "https://www.fotmob.com/api/data"
 TR_SAATI = timezone(timedelta(hours=3))
 AYLAR = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz",
          "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
@@ -83,7 +86,17 @@ def isimleri_oku():
     except (OSError, ValueError):
         veri = {}
     KISALTMALAR.update(veri.get("kisaltmalar", {}))
-    return veri.get("takimlar", {}), veri.get("oyuncular", {})
+    # Veri kaynaklarındaki bilinen yazım hataları (isim_duzeltme.json bunların üstüne yazar)
+    oyuncular = {
+        "Orkun Kökcü": "Orkun Kökçü", "Ogulcan Ülgün": "Oğulcan Ülgün",
+        "Irfan Can Kahveci": "İrfan Can Kahveci", "Ismail Yüksek": "İsmail Yüksek",
+        "Oguz Aydin": "Oğuz Aydın", "Kerem Aktürkoglu": "Kerem Aktürkoğlu",
+        "Çaglar Söyüncü": "Çağlar Söyüncü", "Mert Yandas": "Mert Yandaş",
+        "Irfan Can Egribayat": "İrfan Can Eğribayat", "Baris Alper Yilmaz": "Barış Alper Yılmaz",
+        "Ugurcan Çakir": "Uğurcan Çakır", "Kenan Yildiz": "Kenan Yıldız",
+    }
+    oyuncular.update(veri.get("oyuncular", {}))
+    return veri.get("takimlar", {}), oyuncular
 
 
 TAKIM_ADI, OYUNCU_ADI = isimleri_oku()
@@ -193,6 +206,78 @@ def mevki_sirasi(kisaltma):
 HAT_ADI = ["Kaleci", "Defans", "Orta saha", "Forvet"]
 
 
+# ----------------------------------------------------------------- FotMob (ilk 11)
+
+_fotmob_gun = {}
+FOTMOB_MEVKI = {0: "G", 1: "CD", 2: "CM", 3: "F"}
+
+
+def katla(metin):
+    """Türkçe ve aksanlı harfleri sadeleştirir: 'Beşiktaş' -> 'besiktas'."""
+    metin = (metin or "").replace("ı", "i").replace("İ", "i")
+    metin = unicodedata.normalize("NFKD", metin)
+    return "".join(h for h in metin if not unicodedata.combining(h)).lower()
+
+
+def ad_uyar(a, b):
+    a, b = katla(a), katla(b)
+    ta = [t for t in re.split(r"[^a-z0-9]+", a) if len(t) >= 4]
+    tb = [t for t in re.split(r"[^a-z0-9]+", b) if len(t) >= 4]
+    return any(t in b for t in ta) or any(t in a for t in tb)
+
+
+def fotmob_maclari(gun):
+    if gun not in _fotmob_gun:
+        try:
+            v = json_al(f"{FOTMOB}/matches?date={gun}", deneme=1)
+            _fotmob_gun[gun] = [m for lg in v.get("leagues", []) for m in lg.get("matches", [])]
+        except Exception as hata:
+            print(f"  ! FotMob maç listesi alınamadı: {hata}")
+            _fotmob_gun[gun] = []
+    return _fotmob_gun[gun]
+
+
+def fotmob_kadro(e):
+    """ESPN maçının FotMob'daki açıklanmış ilk 11'leri, ESPN biçimine çevrilmiş halde (yoksa None)."""
+    ev, dep = taraflar(e)
+    basla = zaman(e)
+    for m in fotmob_maclari(basla.strftime("%Y%m%d")):
+        try:
+            t = datetime.fromisoformat(m["status"]["utcTime"].replace("Z", "+00:00"))
+        except (KeyError, ValueError, TypeError):
+            continue
+        if abs((t - basla).total_seconds()) > 600:
+            continue
+        if not (ad_uyar((m.get("home") or {}).get("name"), ev["team"]["displayName"])
+                and ad_uyar((m.get("away") or {}).get("name"), dep["team"]["displayName"])):
+            continue
+        try:
+            d = json_al(f"{FOTMOB}/matchDetails?matchId={m['id']}", deneme=1)
+        except Exception as hata:
+            print(f"  ! FotMob kadrosu alınamadı: {hata}")
+            return None
+        lu = (d.get("content") or {}).get("lineup") or {}
+        if "predict" in str(lu.get("lineupType", "")).lower():
+            return None                       # tahmini kadro: gönderme
+        sonuc = []
+        for fk, taraf in ((lu.get("homeTeam") or {}, ev), (lu.get("awayTeam") or {}, dep)):
+            ilk = fk.get("starters") or []
+            if len(ilk) != 11:
+                return None
+            sonuc.append({
+                "homeAway": taraf["homeAway"],
+                "team": {"id": taraf["id"], "displayName": taraf["team"]["displayName"]},
+                "formation": fk.get("formation") or "",
+                "roster": [{
+                    "starter": True,
+                    "athlete": {"displayName": p.get("name") or "?", "lastName": p.get("lastName")},
+                    "position": {"abbreviation": FOTMOB_MEVKI.get(p.get("usualPlayingPositionId"), "CM")},
+                } for p in ilk],
+            })
+        return sonuc
+    return None
+
+
 def ilk11_metni(e, kadro, etiket):
     ilk = [p for p in kadro["roster"] if p.get("starter")]
     ilk.sort(key=lambda p: mevki_sirasi(p.get("position", {}).get("abbreviation")))
@@ -229,7 +314,8 @@ def ilk11_metni(e, kadro, etiket):
                 satir.append(", ".join(adlar[bas:bas + n]))
                 bas += n
         else:
-            satir = [f"{HAT_ADI[h]}: {', '.join(a for a, hh in zip(adlar, hat_no) if hh == h)}"
+            # diziliş bilinmiyorsa: kaleci, defans, orta saha, forvet ayrı satırlarda
+            satir = [", ".join(a for a, hh in zip(adlar, hat_no) if hh == h)
                      for h in range(4) if h in hat_no]
         bas_satir = f"📋 {takim(kadro['team']['displayName'])} ilk 11" + (f" ({dizilis})" if dizilis else "")
         metin = [bas_satir, f"{mac_adi(e)} | {saat_yazisi(zaman(e))}", ""] + satir
@@ -426,6 +512,7 @@ def gunleri_bul(tarih):
 def tur(durum, kuru, hepsi, tarih):
     """Bir kez bakar. Canlı (ya da birazdan başlayacak) maç varsa True döner."""
     gonderilen = durum["gonderilenler"]
+    _fotmob_gun.clear()
     simdi = datetime.now(timezone.utc)
     aktif = False
     hata_sayisi = istek_sayisi = 0
@@ -474,6 +561,12 @@ def tur(durum, kuru, hepsi, tarih):
                 kadrolar = ozet.get("rosters", [])
                 hazir = len(kadrolar) == 2 and all(
                     sum(1 for p in k.get("roster", []) if p.get("starter")) == 11 for k in kadrolar)
+                if not hazir:
+                    # ESPN'de yoksa FotMob'a bak (kadroyu genelde daha erken giriyor)
+                    fm = fotmob_kadro(e)
+                    if fm:
+                        kadrolar, hazir = fm, True
+                        print(f"  {mac_adi(e)}: ilk 11 FotMob'dan alındı")
                 if hazir:
                     kadrolar.sort(key=lambda k: 0 if k.get("homeAway") == "home" else 1)
                     tamam = True
