@@ -1,0 +1,36 @@
+{
+ "takimlar": {
+  "Besiktas": "Beşiktaş",
+  "Caykur Rizespor": "Çaykur Rizespor",
+  "Erzurum BB": "Erzurumspor FK",
+  "Eyupspor": "Eyüpspor",
+  "Fenerbahce": "Fenerbahçe",
+  "Genclerbirligi": "Gençlerbirliği",
+  "Goztepe": "Göztepe",
+  "Istanbul Basaksehir": "Başakşehir",
+  "Kasimpasa": "Kasımpaşa",
+  "Fatih Karagumruk": "Fatih Karagümrük",
+  "Antalyaspor": "Antalyaspor",
+  "Kayserispor": "Kayserispor",
+  "Sivasspor": "Sivasspor",
+  "Hatayspor": "Hatayspor",
+  "Bodrum FK": "Bodrum FK",
+  "Turkey": "Türkiye"
+ },
+ "oyuncular": {
+  "Irfan Can Kahveci": "İrfan Can Kahveci",
+  "Ismail Yüksek": "İsmail Yüksek",
+  "Oguz Aydin": "Oğuz Aydın",
+  "Kerem Aktürkoglu": "Kerem Aktürkoğlu",
+  "Çaglar Söyüncü": "Çağlar Söyüncü",
+  "Mert Yandas": "Mert Yandaş",
+  "Irfan Can Egribayat": "İrfan Can Eğribayat",
+  "Orhan Ovacikli": "Orhan Ovacıklı",
+  "Ugurcan Çakir": "Uğurcan Çakır",
+  "Baris Alper Yilmaz": "Barış Alper Yılmaz",
+  "Abdülkerim Bardakci": "Abdülkerim Bardakcı",
+  "Kenan Yildiz": "Kenan Yıldız",
+  "Arda Usluoglu": "Arda Usluoğlu",
+  "Yusuf Ozdemir": "Yusuf Özdemir"
+ }
+}
