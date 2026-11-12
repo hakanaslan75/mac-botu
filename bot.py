@@ -1,6 +1,7 @@
 """Maç botu: ilk 11'leri, golleri ve maç sonuçlarını Telegram'a hazır tweet olarak yollar.
 
 Veri: ESPN'in herkese açık skor verisi (anahtar gerekmez, ücretsiz).
+Kulüp ligleri (LIGLER, varsayılan Süper Lig) ve tüm ülkelerin A milli maçları (MILLI_LIGLER) izlenir.
 İlk 11 için önce FotMob'a bakılır (ESPN kadroyu bazen maça çok az kala giriyor), yoksa ESPN.
 Telegram mesajındaki "X'te paylaş" düğmesine basınca X, metin yazılmış halde açılır.
 Yalnızca Python'un kendi kütüphaneleri kullanılır; paket kurmak gerekmez.
@@ -41,6 +42,67 @@ ETIKETLER = {
     "ita.1": "#SerieA",
     "ger.1": "#Bundesliga",
     "fra.1": "#Ligue1",
+    # Milli maçlar
+    "uefa.nations": "#UluslarLigi",
+    "fifa.friendly": "#HazırlıkMaçı",
+    "fifa.world": "#DünyaKupası",
+    "fifa.worldq.uefa": "#DünyaKupasıElemeleri",
+    "fifa.worldq.conmebol": "#DünyaKupasıElemeleri",
+    "fifa.worldq.concacaf": "#DünyaKupasıElemeleri",
+    "fifa.worldq.afc": "#DünyaKupasıElemeleri",
+    "fifa.worldq.caf": "#DünyaKupasıElemeleri",
+    "fifa.worldq.ofc": "#DünyaKupasıElemeleri",
+    "uefa.euro": "#EURO",
+    "uefa.euroq": "#EUROElemeleri",
+    "conmebol.america": "#CopaAmerica",
+    "caf.nations": "#AfrikaUluslarKupası",
+    "caf.nations_qual": "#AfrikaUluslarKupası",
+    "afc.asian.cup": "#AsyaKupası",
+    "afc.cupq": "#AsyaKupası",
+    "concacaf.nations.league": "#ConcacafUluslarLigi",
+    "concacaf.gold": "#GoldCup",
+}
+# Tüm ülkelerin A milli maçları (ESPN kodları, 12 Kasım 2026'da gerçek istekle doğrulandı).
+# Turnuva olmayan dönemde boş döner, sorun değil. MILLI_LIGLER ayarıyla değiştirilebilir, "yok" yazılırsa kapanır.
+MILLI_LIGLER = [
+    "uefa.nations", "fifa.friendly", "fifa.world", "uefa.euro", "uefa.euroq",
+    "fifa.worldq.uefa", "fifa.worldq.conmebol", "fifa.worldq.concacaf", "fifa.worldq.afc",
+    "fifa.worldq.caf", "fifa.worldq.ofc", "conmebol.america", "caf.nations", "caf.nations_qual",
+    "afc.asian.cup", "afc.cupq", "concacaf.nations.league", "concacaf.gold",
+]
+# Türkiye'nin maçlarına ek etiket
+TURKIYE_ETIKETI = "#BizimÇocuklar"
+# Ülke adları (ESPN İngilizce yazıyor). isim_duzeltme.json "takimlar" bunların üstüne yazar.
+ULKE_ADI = {
+    "Türkiye": "Türkiye", "Turkey": "Türkiye", "Germany": "Almanya", "England": "İngiltere",
+    "France": "Fransa", "Spain": "İspanya", "Italy": "İtalya", "Portugal": "Portekiz",
+    "Netherlands": "Hollanda", "Belgium": "Belçika", "Croatia": "Hırvatistan", "Switzerland": "İsviçre",
+    "Austria": "Avusturya", "Denmark": "Danimarka", "Sweden": "İsveç", "Norway": "Norveç",
+    "Finland": "Finlandiya", "Iceland": "İzlanda", "Poland": "Polonya", "Czechia": "Çekya",
+    "Slovakia": "Slovakya", "Slovenia": "Slovenya", "Hungary": "Macaristan", "Romania": "Romanya",
+    "Bulgaria": "Bulgaristan", "Greece": "Yunanistan", "Serbia": "Sırbistan", "Montenegro": "Karadağ",
+    "Bosnia-Herzegovina": "Bosna-Hersek", "North Macedonia": "Kuzey Makedonya", "Albania": "Arnavutluk",
+    "Kosovo": "Kosova", "Ukraine": "Ukrayna", "Russia": "Rusya", "Belarus": "Belarus",
+    "Georgia": "Gürcistan", "Armenia": "Ermenistan", "Azerbaijan": "Azerbaycan", "Kazakhstan": "Kazakistan",
+    "Scotland": "İskoçya", "Wales": "Galler", "Republic of Ireland": "İrlanda",
+    "Northern Ireland": "Kuzey İrlanda", "Israel": "İsrail", "Cyprus": "Kıbrıs Rum Kesimi",
+    "Latvia": "Letonya", "Lithuania": "Litvanya", "Estonia": "Estonya", "Moldova": "Moldova",
+    "Luxembourg": "Lüksemburg", "Malta": "Malta", "Andorra": "Andorra", "San Marino": "San Marino",
+    "Liechtenstein": "Lihtenştayn", "Gibraltar": "Cebelitarık", "Faroe Islands": "Faroe Adaları",
+    "Brazil": "Brezilya", "Argentina": "Arjantin", "Uruguay": "Uruguay", "Colombia": "Kolombiya",
+    "Chile": "Şili", "Ecuador": "Ekvador", "Peru": "Peru", "Paraguay": "Paraguay",
+    "Bolivia": "Bolivya", "Venezuela": "Venezuela", "United States": "ABD", "Mexico": "Meksika",
+    "Canada": "Kanada", "Costa Rica": "Kosta Rika", "Panama": "Panama", "Jamaica": "Jamaika",
+    "Japan": "Japonya", "South Korea": "Güney Kore", "China": "Çin", "Australia": "Avustralya",
+    "Iran": "İran", "Saudi Arabia": "Suudi Arabistan", "Qatar": "Katar", "Iraq": "Irak",
+    "United Arab Emirates": "BAE", "Uzbekistan": "Özbekistan", "Jordan": "Ürdün", "Syria": "Suriye",
+    "Morocco": "Fas", "Egypt": "Mısır", "Algeria": "Cezayir", "Tunisia": "Tunus", "Senegal": "Senegal",
+    "Nigeria": "Nijerya", "Ghana": "Gana", "Cameroon": "Kamerun", "Ivory Coast": "Fildişi Sahili",
+    "South Africa": "Güney Afrika", "Mali": "Mali", "Congo DR": "Kongo DC", "Cape Verde": "Yeşil Burun Adaları",
+    "New Zealand": "Yeni Zelanda", "Libya": "Libya", "India": "Hindistan", "Somalia": "Somali",
+    "Suriname": "Surinam", "Eswatini": "Esvatini", "Honduras": "Honduras", "Indonesia": "Endonezya",
+    "Lebanon": "Lübnan", "Kuwait": "Kuveyt", "Bahrain": "Bahreyn", "Palestine": "Filistin",
+    "Haiti": "Haiti", "Curaçao": "Curaçao", "Sudan": "Sudan", "Zambia": "Zambiya", "Angola": "Angola",
 }
 # Maç etiketi kısaltmaları (#EVvDEP). 8 Kasım 2026'da Türkiye X gündem arşivinden derlendi:
 # ör. #ÇFKvFB, #BJKvGB, #GSvAMD, #İBFKvGS, #KNYvTS, #RİZvFB. Listede olmayan takımda ESPN kısaltması kullanılır.
@@ -50,6 +112,8 @@ KISALTMALAR = {
     "Konyaspor": "KNY", "Alanyaspor": "ALY", "Amed SFK": "AMD", "Erzurum BB": "ERZ",
     "Eyupspor": "EYP", "Genclerbirligi": "GB", "Gaziantep FK": "GFK", "Çorum FK": "ÇFK",
     "Samsunspor": "SAM", "Caykur Rizespor": "RİZ",
+    # Milli takımlar: ESPN zaten FIFA kodu veriyor (ESP, FRA, BEL...), Türkiye'yi Türkçe yazıyoruz: #TÜRvBEL
+    "Türkiye": "TÜR", "Turkey": "TÜR",
 }
 ILK11_ONCE_DK = 90     # maçtan en çok bu kadar dakika önce ilk 11'e bak
 ILK11_SONRA_DK = 20     # başladıktan sonra en çok bu kadar dakika ilk 11 gönder
@@ -94,9 +158,14 @@ def isimleri_oku():
         "Çaglar Söyüncü": "Çağlar Söyüncü", "Mert Yandas": "Mert Yandaş",
         "Irfan Can Egribayat": "İrfan Can Eğribayat", "Baris Alper Yilmaz": "Barış Alper Yılmaz",
         "Ugurcan Çakir": "Uğurcan Çakır", "Kenan Yildiz": "Kenan Yıldız",
+        "Abdülkerim Bardakçi": "Abdülkerim Bardakcı", "Ferdi Kadioglu": "Ferdi Kadıoğlu",
+        "Eren Elmali": "Eren Elmalı", "Aral Simsir": "Aral Şimşir",
+        "Hakan Çalhanoglu": "Hakan Çalhanoğlu", "Samet Akaydin": "Samet Akaydın",
     }
     oyuncular.update(veri.get("oyuncular", {}))
-    return veri.get("takimlar", {}), oyuncular
+    takimlar = dict(ULKE_ADI)
+    takimlar.update(veri.get("takimlar", {}))
+    return takimlar, oyuncular
 
 
 TAKIM_ADI, OYUNCU_ADI = isimleri_oku()
@@ -502,6 +571,16 @@ def mac_takip_ediliyor_mu(e, takimlar):
     return any(t.lower() in ad for t in takimlar for ad in adlar)
 
 
+def lig_listesi():
+    """[(lig kodu, takım süzgeci, milli mi)]. Kulüp ligleri TAKIMLAR'a, milli maçlar MILLI_TAKIMLAR'a göre süzülür."""
+    kulup = liste("LIGLER", "tur.1")
+    ayar = os.environ.get("MILLI_LIGLER", "").strip()
+    milli = [] if ayar.lower() in ("yok", "kapali", "kapalı", "0") else liste("MILLI_LIGLER", ",".join(MILLI_LIGLER))
+    sonuc = [(lig, liste("TAKIMLAR"), False) for lig in kulup if lig not in milli]
+    sonuc += [(lig, liste("MILLI_TAKIMLAR"), True) for lig in milli]
+    return sonuc
+
+
 def gunleri_bul(tarih):
     if tarih:
         return [tarih]
@@ -516,13 +595,13 @@ def tur(durum, kuru, hepsi, tarih):
     simdi = datetime.now(timezone.utc)
     aktif = False
     hata_sayisi = istek_sayisi = 0
-    takimlar = liste("TAKIMLAR")
 
     def isaretle(anahtar):
         gonderilen[anahtar] = datetime.now(timezone.utc).isoformat()
 
-    for lig in liste("LIGLER", "tur.1"):
-        lig_etiketi = os.environ.get("ETIKET", "").strip() or ETIKETLER.get(lig, "")
+    for lig, takimlar, milli in lig_listesi():
+        lig_etiketi = ETIKETLER.get(lig, "") if milli else (
+            os.environ.get("ETIKET", "").strip() or ETIKETLER.get(lig, ""))
         maclar = {}
         for gun in gunleri_bul(tarih):
             istek_sayisi += 1
@@ -539,11 +618,14 @@ def tur(durum, kuru, hepsi, tarih):
             if not mac_takip_ediliyor_mu(e, takimlar):
                 continue
             # önce maçın kendi etiketi (gündeme giren), sonra lig etiketi
-            etiket = " ".join(x for x in (mac_etiketi(e), lig_etiketi) if x)
+            turkiye = milli and any(takim(t["team"]["displayName"]) == "Türkiye" for t in taraflar(e))
+            etiket = " ".join(x for x in (mac_etiketi(e), lig_etiketi, TURKIYE_ETIKETI if turkiye else "") if x)
             durum_tipi = e["status"]["type"]
             asama = durum_tipi.get("state")          # pre / in / post
             basla = zaman(e)
             dk_kaldi = (basla - simdi).total_seconds() / 60
+            if kuru:
+                print(f"  [{lig}] {mac_adi(e)} | {saat_yazisi(basla)} | {asama} | {etiket}")
             # Canlı maç ya da 100 dakika içinde başlayacak maç varsa bot uyanık kalır
             # (ilk 11 maçtan ~60-75 dk önce açıklanıyor; gol kaçmasın diye maç bitene kadar sürer)
             if asama == "in" or (asama == "pre" and -180 <= dk_kaldi <= ILK11_ONCE_DK + 10):

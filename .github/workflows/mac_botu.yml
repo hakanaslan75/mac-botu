@@ -2,7 +2,7 @@ name: Mac botu
 
 on:
   schedule:
-    - cron: "3,13,23,33,43,53 * * * *"   # her 10 dakikada bir (GitHub bazen geciktirir ya da atlar)
+    - cron: "3,13,23,33,43,53 * * * *"   # her 10 dakikada bir, her gün (milli maç günleri de dahil; GitHub bazen geciktirir)
   workflow_dispatch:                      # elle ya da botun kendisi tarafından başlatmak için
 
 permissions:
@@ -27,6 +27,8 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           LIGLER: ${{ vars.LIGLER }}
           TAKIMLAR: ${{ vars.TAKIMLAR }}
+          MILLI_LIGLER: ${{ vars.MILLI_LIGLER }}
+          MILLI_TAKIMLAR: ${{ vars.MILLI_TAKIMLAR }}
         run: python3 bot.py --dongu 25
 
       - name: Gonderilenleri kaydet
